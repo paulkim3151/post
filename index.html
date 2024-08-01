@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HTML TEST</title>
+  <style>
+    body {
+      width: 1600px;
+      height: 1000px;
+      margin: 0;
+      background-color: #FFFFE0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: Arial, sans-serif;
+    }
+
+    .centered-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .name-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 20px;
+    }
+
+    #activityName {
+      font-size: 1.5em;
+      font-weight: bold;
+    }
+
+    input[type="text"] {
+      padding: 10px;
+      font-size: 16px;
+    }
+
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="centered-container">
+    <div class="name-container">
+      활동 이름:
+      <div id="activityName">받아오는 중...</div>
+    </div>
+    <div>
+      <input type="text" id="value" placeholder="Enter text here">
+      <button type="submit" id="saveData">Save</button>
+      <button id="progress">Progress</button>
+    </div>
+  </div>
+  <script src="./post-message-manager.js"></script>
+  <script>
+    const postMessageManager = new PostMessageManagerImpl();
+
+    document.getElementById('saveData').addEventListener('click', () => {
+      // 현재 열린 환경이 학습 화면인지 편집 화면인지 확인합니다.
+      postMessageManager.send({
+        messageType: `getEnvironment`,
+        payload: null,
+        target: window.parent,
+        targetOrigin: "*",
+      }).then((env) => {
+        if (env === 'study') { // 현재 열린 환경이 학습 화면일때
+          // 학생이 작업한 데이터를 저장합니다.
+          postMessageManager.send({
+            messageType: `saveData`,
+            payload: document.getElementById('value').value,
+            target: window.parent,
+            targetOrigin: "*",
+          }).then((res) => {
+            if (res) {
+              alert('학생이 작업한 데이터가 저장되었습니다.');
+            } else {
+              alert('저장에 실패했습니다.');
+            }
+          });
+        }
+
+        if (env === 'edit') { // 현재 열린 환경이 편집 화면일때
+          // 현재 데이터를 원본 데이터로 저장합니다.
+          postMessageManager.send({
+            messageType: `saveOriginalData`,
+            payload: document.getElementById('value').value,
+            target: window.parent,
+            targetOrigin: "*",
+          }).then((res) => {
+            if (res) {
+              alert('편집 화면에서 작업한 데이터가 저장되었습니다.');
+            } else {
+              alert('저장에 실패했습니다.');
+            }
+          });
+        }
+      })
+    })
+
+    document.getElementById('progress').addEventListener('click', () => {
+      postMessageManager.send({
+        messageType: `setProgress`,
+        payload: Math.random(),
+        target: window.parent,
+        targetOrigin: "*",
+      })
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      // 활동 이름을 받아옵니다.
+      postMessageManager.send({
+        messageType: `getActivityName`,
+        payload: null,
+        target: window.parent,
+        targetOrigin: "*",
+      }).then((data) => {
+        document.getElementById('activityName').innerText = data;
+      });
+
+      // 현재 열린 환경이 학습 화면인지 편집 화면인지 확인합니다.
+      postMessageManager.send({
+        messageType: `getEnvironment`,
+        payload: null,
+        target: window.parent,
+        targetOrigin: "*",
+      }).then((env) => {
+        if (env === 'study') { // 현재 열린 환경이 학습 화면일때
+          // 학생의 작업 데이터를 불러옵니다.
+          postMessageManager.send({
+            messageType: `loadData`,
+            payload: null,
+            target: window.parent,
+            targetOrigin: "*",
+          }).then((data) => {
+            if (data !== null) {
+              // 학생의 데이터가 있는 경우
+              document.getElementById('value').value = data;
+              return;
+            }
+
+            // 학생의 데이터가 없는 경우, 선생님이 사전에 설정한 원본 데이터를 받아옵니다.
+            postMessageManager.send({
+              messageType: `loadOriginalData`,
+              payload: null,
+              target: window.parent,
+              targetOrigin: "*",
+            }).then((data) => {
+              document.getElementById('value').value = data;
+            });
+          });
+        }
+
+        if (env === 'edit') { // 현재 열린 환경이 편집 화면일때
+          // 저장한 원본 데이터를 받아옵니다.
+          postMessageManager.send({
+            messageType: `loadOriginalData`,
+            payload: null,
+            target: window.parent,
+            targetOrigin: "*",
+          }).then((data) => {
+            document.getElementById('value').value = data;
+          });
+        }
+      });
+    });
+  </script>
+</body>
+
+</html>
